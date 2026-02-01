@@ -1,0 +1,13 @@
+This is a simple benign text file.
+It contains no malicious code.
+Just plain text for testing purposes.
+
+Some common words:
+- Hello
+- World
+- Testing
+- Benign
+- Safe
+- Clean
+
+This file should be classified as safe by the malware detection system.

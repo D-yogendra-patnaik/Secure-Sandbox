@@ -1,0 +1,62 @@
+rules:
+  - id: hardcoded-password
+    pattern-either:
+      - pattern: password = "..."
+      - pattern: PASSWORD = "..."
+      - pattern: passwd = "..."
+      - pattern: pwd = "..."
+    message: Hardcoded password detected
+    severity: ERROR
+    languages:
+      - python
+      - javascript
+      - java
+
+  - id: dangerous-os-system
+    pattern-either:
+      - pattern: os.system(...)
+      - pattern: subprocess.call(..., shell=True, ...)
+      - pattern: subprocess.Popen(..., shell=True, ...)
+      - pattern: subprocess.run(..., shell=True, ...)
+    message: Use of os.system or subprocess with shell=True is dangerous
+    severity: ERROR
+    languages:
+      - python
+
+  - id: dangerous-eval
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+    message: Use of eval() or exec() is dangerous
+    severity: ERROR
+    languages:
+      - python
+      - javascript
+
+  - id: dangerous-pickle
+    pattern-either:
+      - pattern: pickle.load(...)
+      - pattern: pickle.loads(...)
+    message: Unpickling untrusted data is dangerous
+    severity: WARNING
+    languages:
+      - python
+
+  - id: socket-usage
+    pattern-either:
+      - pattern: socket.socket(...)
+      - pattern: socket.create_connection(...)
+    message: Network socket usage detected
+    severity: WARNING
+    languages:
+      - python
+
+  - id: dangerous-deserialize
+    pattern-either:
+      - pattern: json.loads($X)
+      - pattern: yaml.load($X)
+      - pattern: yaml.unsafe_load($X)
+    message: Deserialization of untrusted data
+    severity: WARNING
+    languages:
+      - python

@@ -1,0 +1,7 @@
+file_size,byte_entropy,ascii_strings_count,num_imports,has_exec_extension,contains_shebang,label
+532310,7.234,32,18,1,0,1
+45231,4.521,87,3,0,1,0
+823441,6.892,15,25,1,1,1
+12340,3.982,145,2,0,0,0
+651234,7.456,22,21,0,1,1
+23456,4.234,98,5,0,1,0
