@@ -1,5 +1,3 @@
-"""Tests for the FastAPI application."""
-
 import os
 import tempfile
 from pathlib import Path
@@ -13,7 +11,6 @@ client = TestClient(app)
 
 
 def test_root_endpoint():
-    """Test the root endpoint."""
     response = client.get("/")
     assert response.status_code == 200
     
@@ -24,20 +21,17 @@ def test_root_endpoint():
 
 
 def test_web_endpoint():
-    """Test the web interface endpoint."""
     response = client.get("/web")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
 
 
 def test_analyze_endpoint_no_file():
-    """Test analyze endpoint without file."""
     response = client.post("/analyze")
-    assert response.status_code == 422  # Validation error
+    assert response.status_code == 422
 
 
 def test_analyze_endpoint_with_sample():
-    """Test analyze endpoint with sample file."""
     sample_path = Path(__file__).parent.parent / "samples" / "vulnerable.py"
     
     if not sample_path.exists():
@@ -53,7 +47,7 @@ def test_analyze_endpoint_with_sample():
     
     data = response.json()
     
-    # Check response structure
+
     assert "filename" in data
     assert "static_analysis" in data
     assert "features" in data
@@ -61,7 +55,6 @@ def test_analyze_endpoint_with_sample():
     assert "dynamic_analysis" in data
     assert "warnings" in data
     
-    # Check features
     features = data["features"]
     assert "file_size" in features
     assert "byte_entropy" in features
@@ -70,7 +63,6 @@ def test_analyze_endpoint_with_sample():
     assert "has_exec_extension" in features
     assert "contains_shebang" in features
     
-    # Check ML prediction
     ml_pred = data["ml_prediction"]
     assert "malware" in ml_pred
     assert "score" in ml_pred
@@ -78,11 +70,9 @@ def test_analyze_endpoint_with_sample():
     assert isinstance(ml_pred["malware"], bool)
     assert 0.0 <= ml_pred["score"] <= 1.0
     
-    # Check dynamic analysis
     dyn = data["dynamic_analysis"]
     assert "ran" in dyn
     
-    # If Docker is available, check full response
     if dyn["ran"]:
         assert "stdout" in dyn
         assert "stderr" in dyn
@@ -93,7 +83,6 @@ def test_analyze_endpoint_with_sample():
 
 
 def test_analyze_endpoint_benign_file():
-    """Test analyze endpoint with benign file."""
     sample_path = Path(__file__).parent.parent / "samples" / "benign.txt"
     
     if not sample_path.exists():
@@ -113,8 +102,8 @@ def test_analyze_endpoint_benign_file():
 
 
 def test_analyze_endpoint_large_file():
-    """Test analyze endpoint with large file (should reject)."""
-    # Create a file larger than 10MB
+    
+
     large_content = b'X' * (11 * 1024 * 1024)
     
     with tempfile.NamedTemporaryFile(mode='wb', delete=False) as tmp:
@@ -136,7 +125,6 @@ def test_analyze_endpoint_large_file():
 
 
 def test_analyze_endpoint_temp_python_file():
-    """Test analyze with a temporary Python file."""
     code = b"""
 import sys
 print("Hello from test")
@@ -156,7 +144,6 @@ print("Hello from test")
         assert response.status_code == 200
         data = response.json()
         
-        # Should detect the import
         assert data["features"]["num_imports"] >= 1
         
     finally:
@@ -164,7 +151,6 @@ print("Hello from test")
 
 
 def test_static_analysis_structure():
-    """Test static analysis returns proper structure."""
     sample_path = Path(__file__).parent.parent / "samples" / "vulnerable.py"
     
     if not sample_path.exists():
@@ -181,10 +167,8 @@ def test_static_analysis_structure():
     
     static_analysis = data["static_analysis"]
     
-    # Should be a list (even if empty due to missing semgrep)
     assert isinstance(static_analysis, list) or "error" in static_analysis
     
-    # If findings exist, check structure
     if isinstance(static_analysis, list) and len(static_analysis) > 0:
         finding = static_analysis[0]
         assert "rule_id" in finding

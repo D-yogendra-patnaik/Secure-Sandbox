@@ -1,5 +1,3 @@
-"""FastAPI application for malware detection."""
-
 import logging
 import os
 import tempfile
@@ -11,12 +9,11 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Body
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
-from app.analyzer.static import run_semgrep_analysis
-from app.analyzer.dynamic import run_dynamic_analysis
-from app.features import extract_features
-from app.model import load_model, predict
+from .analyzer.static import run_semgrep_analysis
+from .analyzer.dynamic import run_dynamic_analysis
+from .features import extract_features
+from .model import load_model, predict
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -29,17 +26,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 class URLRequest(BaseModel):
-    """Request model for URL-based analysis."""
     url: str
 
 
 @app.get("/")
 async def root():
-    """Health check endpoint."""
     return {
         "status": "ok",
         "service": "Malware Detection API",
@@ -49,7 +44,6 @@ async def root():
 
 @app.get("/web", response_class=HTMLResponse)
 async def web_interface():
-    """Serve web interface."""
     template_path = Path(__file__).parent / "templates" / "index.html"
     with open(template_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
@@ -57,20 +51,11 @@ async def web_interface():
 
 @app.post("/analyze")
 async def analyze(file: Optional[UploadFile] = File(None)):
-    """
-    Analyze uploaded file for malware.
-    
-    Args:
-        file: Uploaded file (multipart/form-data)
-    
-    Returns:
-        JSON with analysis results
-    """
     warnings = []
     temp_path = None
     
     try:
-        # Handle file upload
+
         if not file:
             raise HTTPException(
                 status_code=400,
@@ -144,15 +129,6 @@ async def analyze(file: Optional[UploadFile] = File(None)):
 
 @app.post("/analyze-url")
 async def analyze_url(url_request: URLRequest):
-    """
-    Analyze file from URL for malware.
-    
-    Args:
-        url_request: Request body with URL
-    
-    Returns:
-        JSON with analysis results
-    """
     warnings = []
     temp_path = None
     
@@ -160,7 +136,7 @@ async def analyze_url(url_request: URLRequest):
         url = url_request.url
         filename = url
         
-        # Download file from URL
+
         try:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
@@ -205,7 +181,6 @@ async def analyze_url(url_request: URLRequest):
             }
             warnings.append(f"ML prediction unavailable: {str(e)}")
         
-        # Dynamic analysis
         dynamic_result = run_dynamic_analysis(temp_path)
         
         return JSONResponse({
@@ -223,7 +198,6 @@ async def analyze_url(url_request: URLRequest):
         logger.error(f"Analysis failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
-        # Cleanup temporary file
         if temp_path and os.path.exists(temp_path):
             try:
                 os.unlink(temp_path)

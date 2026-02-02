@@ -1,5 +1,3 @@
-"""ML model loading and prediction."""
-
 import logging
 import os
 import subprocess
@@ -16,14 +14,6 @@ MODEL_VERSION = "v1"
 
 
 def load_model():
-    """
-    Load the trained ML model.
-    
-    If model doesn't exist, train it first.
-    
-    Returns:
-        Trained scikit-learn model
-    """
     if not MODEL_PATH.exists():
         logger.info("Model not found, training new model...")
         train_model()
@@ -38,7 +28,6 @@ def load_model():
 
 
 def train_model():
-    """Train the model by running the training script."""
     train_script = Path(__file__).parent.parent / "training" / "train.py"
     
     if not train_script.exists():
@@ -62,17 +51,6 @@ def train_model():
 
 
 def predict(model, features: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Make prediction using the loaded model.
-    
-    Args:
-        model: Trained scikit-learn model
-        features: Extracted features dictionary
-    
-    Returns:
-        Prediction result with malware flag, score, and version
-    """
-    # Convert features to array in correct order
     feature_order = [
         'file_size',
         'byte_entropy',
@@ -84,11 +62,9 @@ def predict(model, features: Dict[str, Any]) -> Dict[str, Any]:
     
     feature_array = np.array([[features[k] for k in feature_order]])
     
-    # Get prediction probability
     proba = model.predict_proba(feature_array)[0]
-    malware_score = float(proba[1])  # Probability of malware class
+    malware_score = float(proba[1])
     
-    # Threshold at 0.5
     is_malware = malware_score >= 0.5
     
     return {

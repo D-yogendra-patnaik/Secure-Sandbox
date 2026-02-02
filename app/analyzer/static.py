@@ -4,29 +4,19 @@ import json
 import logging
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 
 logger = logging.getLogger(__name__)
 
 SEMGREP_RULES_PATH = Path(__file__).parent / "semgrep_rules.yml"
 
 
-def run_semgrep_analysis(file_path: str) -> List[Dict[str, Any]]:
-    """
-    Run Semgrep static analysis on a file.
-    
-    Args:
-        file_path: Path to file to analyze
-    
-    Returns:
-        List of findings or error dict
-    """
+def run_semgrep_analysis(file_path: str) -> Union[List[Dict[str, Any]], Dict[str, str]]:
     if not SEMGREP_RULES_PATH.exists():
         logger.warning("Semgrep rules file not found")
         return {"error": "Semgrep rules not configured"}
     
     try:
-        # Run semgrep with JSON output
         result = subprocess.run(
             [
                 "semgrep",
@@ -37,15 +27,13 @@ def run_semgrep_analysis(file_path: str) -> List[Dict[str, Any]]:
             capture_output=True,
             text=True,
             timeout=30,
-            check=False  # Don't raise on non-zero exit (findings cause exit code 1)
+            check=False
         )
         
         if result.returncode not in [0, 1]:
-            # Exit code 1 means findings were found, which is normal
             logger.error(f"Semgrep failed: {result.stderr}")
             return {"error": f"Semgrep execution failed"}
         
-        # Parse JSON output
         output = json.loads(result.stdout)
         findings = []
         
