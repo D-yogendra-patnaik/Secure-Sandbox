@@ -1,7 +1,3 @@
-"""
-Docker-based sandbox for safe code execution.
-"""
-
 import logging
 import os
 import platform
@@ -14,7 +10,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Docker import
+
 try:
     import docker
     from docker.errors import DockerException, ImageNotFound, APIError
@@ -22,13 +18,13 @@ try:
 except ImportError:
     DOCKER_AVAILABLE = False
     docker = None
-    DockerException = Exception  # Fallback for type compatibility
+    DockerException = Exception  
     ImageNotFound = Exception
     APIError = Exception
 
 
 class DockerSandbox:
-    """Sandbox for running code in isolated Docker containers."""
+   
 
     def __init__(
         self,
@@ -48,11 +44,11 @@ class DockerSandbox:
             return
 
         try:
-            # Let Docker SDK auto-detect environment (BEST PRACTICE)
+            
             if docker is not None:
                 self.client = docker.from_env()
                 if self.client is not None:
-                    self.client.ping()  # 🔴 CRITICAL CHECK
+                    self.client.ping()  
                     logger.info("Docker daemon is available")
 
         except DockerException as e:

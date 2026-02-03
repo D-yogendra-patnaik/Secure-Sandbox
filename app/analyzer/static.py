@@ -1,4 +1,3 @@
-"""Static analysis using Semgrep."""
 
 import json
 import logging

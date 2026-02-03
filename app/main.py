@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 from .analyzer.static import run_semgrep_analysis
-from .analyzer.dynamic import run_dynamic_analysis
+# from .analyzer.dynamic import run_dynamic_analysis
 from .features import extract_features
 from .model import load_model, predict
 
@@ -63,32 +63,33 @@ async def analyze(file: Optional[UploadFile] = File(None)):
             )
         
         filename = file.filename
+
         
-        # Read file content
         content = await file.read()
+
         
-        # Check file size
         if len(content) > MAX_FILE_SIZE:
             raise HTTPException(
                 status_code=400,
                 detail=f"File too large. Maximum size is {MAX_FILE_SIZE / 1024 / 1024}MB"
             )
+
         
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(filename).suffix) as tmp:
+        suffix = Path(filename).suffix or ""
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(content)
             temp_path = tmp.name
         
-        # Extract features
+        
         features = extract_features(temp_path)
         
-        # Static analysis
+        
         static_analysis = run_semgrep_analysis(temp_path)
         if "error" in static_analysis:
             warnings.append(static_analysis["error"])
             static_analysis = []
         
-        # ML prediction
+        
         try:
             model = load_model()
             ml_result = predict(model, features)
@@ -101,15 +102,15 @@ async def analyze(file: Optional[UploadFile] = File(None)):
             }
             warnings.append(f"ML prediction unavailable: {str(e)}")
         
-        # Dynamic analysis
-        dynamic_result = run_dynamic_analysis(temp_path)
+        
+        # dynamic_result = run_dynamic_analysis(temp_path)
         
         return JSONResponse({
             "filename": filename,
             "static_analysis": static_analysis,
             "features": features,
             "ml_prediction": ml_result,
-            "dynamic_analysis": dynamic_result,
+            # "dynamic_analysis": dynamic_result,
             "warnings": warnings
         })
         
@@ -119,7 +120,7 @@ async def analyze(file: Optional[UploadFile] = File(None)):
         logger.error(f"Analysis failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
-        # Cleanup temporary file
+        
         if temp_path and os.path.exists(temp_path):
             try:
                 os.unlink(temp_path)
@@ -148,7 +149,7 @@ async def analyze_url(url_request: URLRequest):
                     detail=f"Remote file too large. Maximum size is {MAX_FILE_SIZE / 1024 / 1024}MB"
                 )
             
-            # Create temporary file
+            
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
                 tmp.write(content)
                 temp_path = tmp.name
@@ -159,16 +160,16 @@ async def analyze_url(url_request: URLRequest):
                 detail=f"Failed to download file from URL: {str(e)}"
             )
         
-        # Extract features
+        
         features = extract_features(temp_path)
         
-        # Static analysis
+       
         static_analysis = run_semgrep_analysis(temp_path)
         if "error" in static_analysis:
             warnings.append(static_analysis["error"])
             static_analysis = []
         
-        # ML prediction
+        
         try:
             model = load_model()
             ml_result = predict(model, features)
@@ -181,7 +182,7 @@ async def analyze_url(url_request: URLRequest):
             }
             warnings.append(f"ML prediction unavailable: {str(e)}")
         
-        dynamic_result = run_dynamic_analysis(temp_path)
+        
         
         return JSONResponse({
             "filename": filename,
