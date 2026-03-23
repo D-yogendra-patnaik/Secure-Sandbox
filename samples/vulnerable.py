@@ -1,29 +1,17 @@
 #!/usr/bin/env python3
-
+import base64
 import os
-import subprocess
-import pickle
-import socket
 
-password = "admin123"
-API_KEY = "secret_key_12345"
+# Obfuscated payload (harmless)
+encoded = "cHJpbnQoIkhlbGxvIFdvcmxkIik="
+decoded = base64.b64decode(encoded).decode()
 
-def execute_command(cmd):
-    os.system(cmd)
-    
-    subprocess.call(cmd, shell=True)
+# Suspicious-like execution
+exec(decoded)
 
-def deserialize_data(data):
-    return pickle.loads(data)
+# Fake persistence simulation
+with open("startup_simulation.txt", "w") as f:
+    f.write("This simulates persistence behavior")
 
-def dynamic_code_execution(code):
-    eval(code)
-    exec(code)
-
-def create_network_connection():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(("malicious.example.com", 8080))
-    return sock
-
-if __name__ == "__main__":
-    print("This is a vulnerable script for testing purposes only!")
+# Dummy system interaction
+os.system("echo Simulating system command")

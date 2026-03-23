@@ -153,6 +153,7 @@ button:disabled {
 
 .badge.malware { background: var(--danger); }
 .badge.clean { background: var(--safe); }
+.badge.warning { background: #f59e0b; }
 
 pre {
     background: #020617;
@@ -249,17 +250,31 @@ uploadForm.addEventListener("submit", async e => {
 });
 
 function renderResults(data) {
+    const scorecard = data.scorecard || {};
     const malware = data.ml_prediction?.malware;
-    const badge = malware
-        ? `<span class="badge malware">MALWARE</span>`
-        : `<span class="badge clean">CLEAN</span>`;
+    const verdict = scorecard.verdict || (malware ? "SUSPICIOUS" : "CLEAN");
+    
+    let badgeClass = "clean";
+    if (verdict === "UNTRUSTED") badgeClass = "malware";
+    if (verdict === "SUSPICIOUS") badgeClass = "warning";
 
     let html = `
         <div class="section">
-            <h3>${data.filename} ${badge}</h3>
-            <p><b>ML Confidence:</b> ${(data.ml_prediction?.score * 100).toFixed(1)}%</p>
+            <h3>Overall Verdict: <span class="badge ${badgeClass}">${verdict}</span></h3>
+            <p><b>Trust Score:</b> ${scorecard.trust_score || 0}/100</p>
+            ${scorecard.can_execute === false ? `<p style="color: var(--danger); font-weight: bold;">⚠️ Execution blocked by safety policy</p>` : ""}
         </div>
     `;
+
+    if (scorecard.ethics_layer?.length) {
+        html += `
+            <div class="section" style="border-left: 4px solid var(--danger);">
+                <h3 style="color: var(--danger);">🚨 Ethics & Trust Warnings</h3>
+                <ul>
+                    ${scorecard.ethics_layer.map(f => `<li>${f}</li>`).join("")}
+                </ul>
+            </div>`;
+    }
 
     if (data.static_analysis?.length) {
         html += `

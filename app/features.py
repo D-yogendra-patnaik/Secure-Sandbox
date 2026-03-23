@@ -69,13 +69,24 @@ def count_ascii_strings(data: bytes, min_length: int = 4) -> int:
     return len(matches)
 
 
+import ast
+
 def count_python_imports(data: bytes) -> int:
     try:
         text = data.decode('utf-8', errors='ignore')
-    except Exception:
-        return 0
-    
-    import_pattern = r'^\s*(import|from)\s+[\w.]+'
-    matches = re.findall(import_pattern, text, re.MULTILINE)
-    
-    return len(matches)
+        tree = ast.parse(text)
+        
+        import_count = 0
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                import_count += len(node.names)
+            elif isinstance(node, ast.ImportFrom):
+                import_count += len(node.names)
+        
+        return import_count
+    except Exception as e:
+        logger.debug(f"AST parsing failed for import counting: {e}")
+        # Fallback to regex if AST parsing fails (e.g. syntax error in sample)
+        import_pattern = r'^\s*(import|from)\s+[\w.]+'
+        matches = re.findall(import_pattern, text, re.MULTILINE)
+        return len(matches)

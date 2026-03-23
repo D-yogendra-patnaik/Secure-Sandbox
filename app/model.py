@@ -37,7 +37,8 @@ def train_model():
         result = subprocess.run(
             ["python", str(train_script)],
             capture_output=True,
-            text=True,
+            encoding='utf-8',
+            errors='replace',
             timeout=60,
             check=True
         )

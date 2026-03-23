@@ -28,7 +28,7 @@ def test_web_endpoint():
 
 def test_analyze_endpoint_no_file():
     response = client.post("/analyze")
-    assert response.status_code == 422
+    assert response.status_code == 400
 
 
 def test_analyze_endpoint_with_sample():

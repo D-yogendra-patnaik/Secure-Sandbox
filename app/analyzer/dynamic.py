@@ -261,7 +261,7 @@ def run_dynamic_analysis(file_path: str) -> dict:
     }
     """
     result: dict[str, Any] = {
-        "executed":            False,
+        "ran":                 False,
         "exit_code":           None,
         "timed_out":           False,
         "stdout":              "",
@@ -269,6 +269,7 @@ def run_dynamic_analysis(file_path: str) -> dict:
         "filesystem_events":   [],
         "network_connections": [],
         "child_processes":     [],
+        "resource":            {},
         "risk":                {},
         "error":               None,
     }
@@ -315,7 +316,7 @@ def run_dynamic_analysis(file_path: str) -> dict:
                 if platform.system() == "Windows"
                 else {"start_new_session": True} ),
         )
-        result["executed"] = True
+        result["ran"] = True
 
         # ── 4. Collect network / child-process snapshots while it runs ───
         net_snapshots:  list[dict] = []

@@ -1,7 +1,15 @@
 import logging
 import os
+import sys
 import tempfile
 from pathlib import Path
+
+# Add current directory to sys.path to support both 'from app.analyzer' and 'from analyzer'
+current_dir = Path(__file__).parent.resolve()
+if str(current_dir) not in sys.path:
+    sys.path.append(str(current_dir))
+if str(current_dir.parent) not in sys.path:
+    sys.path.append(str(current_dir.parent))
 from typing import Optional
 
 import requests
@@ -11,6 +19,7 @@ from pydantic import BaseModel
 
 from analyzer.static import run_semgrep_analysis
 from analyzer.dynamic import run_dynamic_analysis
+from sandbox.docker_runner import DockerSandbox
 from features import extract_features
 from model import load_model, predict
 
@@ -25,6 +34,15 @@ app = FastAPI(
     description="Secure malware detection with static analysis, ML, and sandboxed execution",
     version="1.0.0"
 )
+
+# Initialize Docker sandbox client lazily
+_docker_sandbox = None
+
+def get_docker_sandbox():
+    global _docker_sandbox
+    if _docker_sandbox is None:
+        _docker_sandbox = DockerSandbox()
+    return _docker_sandbox
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -95,15 +113,72 @@ async def analyze(file: Optional[UploadFile] = File(None)):
             warnings.append(f"ML prediction unavailable: {str(e)}")
 
         # ── Dynamic analysis ──────────────────────────────────────────────
+        dynamic_result = {}
         try:
-            dynamic_result = run_dynamic_analysis(temp_path)
+            sandbox = get_docker_sandbox()
+            if sandbox.is_docker_available():
+                logger.info(f"Running Docker-based analysis for {filename}")
+                docker_result = sandbox.run(temp_path)
+                if docker_result.get("ran"):
+                    dynamic_result = {
+                        "method": "docker",
+                        **docker_result
+                    }
+                else:
+                    logger.warning(f"Docker analysis failed: {docker_result.get('reason')}")
+                    # Fallback to local analysis
+                    dynamic_result = {
+                        "method": "subprocess",
+                        **run_dynamic_analysis(temp_path)
+                    }
+            else:
+                # Docker not available - run subprocess-based analysis directly
+                logger.info(f"Running subprocess-based analysis for {filename}")
+                dynamic_result = {
+                    "method": "subprocess",
+                    **run_dynamic_analysis(temp_path)
+                }
         except Exception as e:
             logger.error(f"Dynamic analysis failed: {e}")
             dynamic_result = {"error": str(e)}
             warnings.append(f"Dynamic analysis unavailable: {str(e)}")
 
+        # ── 💡 Trustworthiness Scorecard ───────────────────────────────────
+        score = 100
+        ethics_flags = []
+        
+        # ML Impact
+        if ml_result.get("malware"):
+            score -= int(ml_result.get("score", 0) * 50)
+            ethics_flags.append(f"ML classified as suspicious (Certainty: {ml_result.get('score')})")
+            
+        # Static Analysis Impact
+        for finding in static_analysis:
+            severity = str(finding.get("severity", "INFO")).upper()
+            deduction = 10 if severity == "ERROR" else 5
+            score -= deduction
+            ethics_flags.append(f"Security Policy Violation: {finding.get('message')} [Line {finding.get('start_line')}]")
+            
+        # Dynamic Analysis Impact
+        if dynamic_result.get("risk", {}).get("risk_score"):
+            score -= dynamic_result["risk"]["risk_score"]
+            ethics_flags.extend([f"Runtime Behavioral Warning: {r}" for r in dynamic_result["risk"].get("reasons", [])])
+            
+        score = max(0, score)
+        scorecard = {
+            "trust_score":    score,
+            "verdict":        "TRUSTED" if score > 75 else "SUSPICIOUS" if score > 40 else "UNTRUSTED",
+            "ethics_layer":   ethics_flags,
+            "can_execute":    score > 5
+        }
+
+        # Add findings to legacy warnings if empty scorecard
+        if not scorecard["ethics_layer"] and not static_analysis and not ml_result.get("malware"):
+             warnings.append("No security anomalies detected")
+
         return JSONResponse({
             "filename":          filename,
+            "scorecard":         scorecard,
             "static_analysis":   static_analysis,
             "features":          features,
             "ml_prediction":     ml_result,
@@ -174,15 +249,66 @@ async def analyze_url(url_request: URLRequest):
             warnings.append(f"ML prediction unavailable: {str(e)}")
 
         # ── Dynamic analysis ──────────────────────────────────────────────
+        dynamic_result = {}
         try:
-            dynamic_result = run_dynamic_analysis(temp_path)
+            sandbox = get_docker_sandbox()
+            if sandbox.is_docker_available():
+                logger.info(f"Running Docker-based analysis for {filename}")
+                docker_result = sandbox.run(temp_path)
+                if docker_result.get("ran"):
+                    dynamic_result = {
+                        "method": "docker",
+                        **docker_result
+                    }
+                else:
+                    logger.warning(f"Docker analysis failed: {docker_result.get('reason')}")
+                    dynamic_result = {
+                        "method": "subprocess",
+                        **run_dynamic_analysis(temp_path)
+                    }
+            else:
+                logger.info(f"Running subprocess-based analysis for {filename}")
+                dynamic_result = {
+                    "method": "subprocess",
+                    **run_dynamic_analysis(temp_path)
+                }
         except Exception as e:
             logger.error(f"Dynamic analysis failed: {e}")
             dynamic_result = {"error": str(e)}
             warnings.append(f"Dynamic analysis unavailable: {str(e)}")
 
+        # ── 💡 Trustworthiness Scorecard ───────────────────────────────────
+        score = 100
+        ethics_flags = []
+        
+        # ML Impact
+        if ml_result.get("malware"):
+            score -= int(ml_result.get("score", 0) * 50)
+            ethics_flags.append(f"ML classified as suspicious (Certainty: {ml_result.get('score')})")
+            
+        # Static Analysis Impact
+        for finding in static_analysis:
+            severity = str(finding.get("severity", "INFO")).upper()
+            deduction = 10 if severity == "ERROR" else 5
+            score -= deduction
+            ethics_flags.append(f"Security Policy Violation: {finding.get('message')} [Line {finding.get('start_line')}]")
+            
+        # Dynamic Analysis Impact
+        if dynamic_result.get("risk", {}).get("risk_score"):
+            score -= dynamic_result["risk"]["risk_score"]
+            ethics_flags.extend([f"Runtime Behavioral Warning: {r}" for r in dynamic_result["risk"].get("reasons", [])])
+            
+        score = max(0, score)
+        scorecard = {
+            "trust_score":    score,
+            "verdict":        "TRUSTED" if score > 75 else "SUSPICIOUS" if score > 40 else "UNTRUSTED",
+            "ethics_layer":   ethics_flags,
+            "can_execute":    score > 5
+        }
+
         return JSONResponse({
             "filename":          filename,
+            "scorecard":         scorecard,
             "static_analysis":   static_analysis,
             "features":          features,
             "ml_prediction":     ml_result,
@@ -205,4 +331,4 @@ async def analyze_url(url_request: URLRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=9000)
