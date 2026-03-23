@@ -3,14 +3,13 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Optional
-
 import requests
 from fastapi import FastAPI, File, UploadFile, HTTPException, Body
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 from .analyzer.static import run_semgrep_analysis
-# from .analyzer.dynamic import run_dynamic_analysis
+
 from .features import extract_features
 from .model import load_model, predict
 
